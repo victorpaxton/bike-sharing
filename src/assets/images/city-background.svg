@@ -1,0 +1,28 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#F0F9FF"/>
+  <path d="M0 400 L800 400 L800 600 L0 600 Z" fill="#0EA5E9" opacity="0.1"/>
+  <path d="M100 200h100v300h-100z" fill="#0EA5E9" opacity="0.2"/>
+  <path d="M250 150h80v350h-80z" fill="#0EA5E9" opacity="0.15"/>
+  <path d="M380 250h120v250h-120z" fill="#0EA5E9" opacity="0.25"/>
+  <path d="M550 100h150v400h-150z" fill="#0EA5E9" opacity="0.2"/>
+  <!-- Windows -->
+  <rect x="120" y="220" width="20" height="20" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="160" y="220" width="20" height="20" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="120" y="260" width="20" height="20" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="160" y="260" width="20" height="20" fill="#0EA5E9" opacity="0.3"/>
+  <!-- More windows -->
+  <rect x="270" y="170" width="15" height="15" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="295" y="170" width="15" height="15" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="270" y="200" width="15" height="15" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="295" y="200" width="15" height="15" fill="#0EA5E9" opacity="0.3"/>
+  <!-- Building details -->
+  <rect x="400" y="270" width="30" height="30" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="450" y="270" width="30" height="30" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="400" y="320" width="30" height="30" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="450" y="320" width="30" height="30" fill="#0EA5E9" opacity="0.3"/>
+  <!-- Tallest building windows -->
+  <rect x="580" y="120" width="25" height="25" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="630" y="120" width="25" height="25" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="580" y="170" width="25" height="25" fill="#0EA5E9" opacity="0.3"/>
+  <rect x="630" y="170" width="25" height="25" fill="#0EA5E9" opacity="0.3"/>
+</svg> 

@@ -6,6 +6,7 @@ interface User {
   name: string;
   email: string;
   balance: number;
+  isAdmin: boolean;
 }
 
 interface RegisterFormData {
@@ -61,10 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: 'John Doe',
         email,
         balance: 50.00,
+        isAdmin: email.endsWith('@admin.com'), // Make users with @admin.com email admins
       };
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));
-      navigate('/dashboard');
+      navigate(mockUser.isAdmin ? '/admin' : '/dashboard');
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -87,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: formData.name,
         email: formData.email,
         balance: 0.00,
+        isAdmin: false,
       };
       setUser(mockUser);
       localStorage.setItem('user', JSON.stringify(mockUser));

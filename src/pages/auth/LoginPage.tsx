@@ -1,27 +1,28 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Globe, Download } from 'lucide-react';
 import Logo from '../../components/Logo';
 import { loginBg } from '@/assets/images';
+import { useLogin } from '../../lib/hooks/useLogin';
 
-type LoginPageProps = {
-  // Add props if needed
-};
-
-const LoginPage = ({}: LoginPageProps) => {
-  const { login } = useAuth();
+const LoginPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const from = location.state?.from?.pathname || '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const loginMutation = useLogin();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     try {
-      await login(email, password);
+      await loginMutation.mutateAsync({ email, password });
+      // After successful login, navigate to the intended page
+      navigate(from, { replace: true });
     } catch (error) {
-      setError('Invalid email or password');
+      // Error handling is managed by the mutation
+      console.error('Login failed:', error);
     }
   };
 
@@ -94,9 +95,9 @@ const LoginPage = ({}: LoginPageProps) => {
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {error && (
+            {loginMutation.isError && (
               <div className="bg-error/10 text-error text-sm p-3 rounded-md">
-                {error}
+                Invalid email or password. Please try again.
               </div>
             )}
 
@@ -114,6 +115,7 @@ const LoginPage = ({}: LoginPageProps) => {
                   className="input-field"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loginMutation.isPending}
                 />
               </div>
             </div>
@@ -132,6 +134,7 @@ const LoginPage = ({}: LoginPageProps) => {
                   className="input-field"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loginMutation.isPending}
                 />
               </div>
             </div>
@@ -143,6 +146,9 @@ const LoginPage = ({}: LoginPageProps) => {
                   name="remember-me"
                   type="checkbox"
                   className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loginMutation.isPending}
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Remember me
@@ -159,8 +165,12 @@ const LoginPage = ({}: LoginPageProps) => {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full">
-              Sign in
+            <button 
+              type="submit" 
+              className="btn btn-primary w-full"
+              disabled={loginMutation.isPending}
+            >
+              {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 

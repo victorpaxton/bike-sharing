@@ -1,107 +1,85 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  balance: number;
-  isAdmin: boolean;
-}
-
-interface RegisterFormData {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-  confirmPassword: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  cardNumber: string;
-  cardName: string;
-  expiryDate: string;
-  cvv: string;
-}
+import { User } from '../types/auth';
+import api from '../lib/api';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (token: string, userData: User) => void;
   logout: () => void;
-  register: (formData: RegisterFormData) => Promise<void>;
-  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for stored user data
+    // Check for existing auth on mount
+    const token = localStorage.getItem('auth_token');
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    
+    if (token && storedUser) {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      setIsAuthenticated(true);
+      // Update axios default headers
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement actual login API call with password
-      if (!email || !password) {
-        throw new Error('Email and password are required');
-      }
-      const mockUser = {
-        id: '1',
-        name: 'John Doe',
-        email,
-        balance: 50.00,
-        isAdmin: email.endsWith('@admin.com'), // Make users with @admin.com email admins
-      };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      navigate(mockUser.isAdmin ? '/admin' : '/dashboard');
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+  const handleUnauthorized = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
+    setIsAuthenticated(false);
+    navigate('/login', { replace: true });
+  };
+
+  const login = (token: string, userData: User) => {
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    // Update axios default headers
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    setUser(userData);
+    setIsAuthenticated(true);
   };
 
   const logout = () => {
-    setUser(null);
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
-    navigate('/login');
+    // Remove auth header
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
+    setIsAuthenticated(false);
+    navigate('/login', { replace: true });
   };
 
-  const register = async (formData: RegisterFormData) => {
-    try {
-      // TODO: Implement actual registration API call
-      const mockUser = {
-        id: '1',
-        name: formData.name,
-        email: formData.email,
-        balance: 0.00,
-        isAdmin: false,
-      };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Registration failed:', error);
-      throw error;
-    }
-  };
+  // Add global error handler for unauthorized errors
+  useEffect(() => {
+    const handleGlobalError = (event: ErrorEvent) => {
+      if (event.error?.message === 'Unauthorized') {
+        handleUnauthorized();
+      }
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    return () => window.removeEventListener('error', handleGlobalError);
+  }, [navigate]);
+
+  if (isLoading) {
+    // You can replace this with a loading spinner component
+    return <div>Loading...</div>;
+  }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,254 +1,24 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Map from '../../components/map/Map';
 import { Bike, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Map as LeafletMap } from 'leaflet';
-
-interface Station {
-  id: string;
-  name: string;
-  address: string;
-  distance: string;
-  availableBikes: number;
-  availableEBikes: number;
-  coordinates: { lat: number; lng: number };
-  image: string;
-}
-
-// Mock data for stations
-const mockStations: Station[] = [
-  // District 1 stations
-  {
-    id: '1',
-    name: 'Ben Thanh Metro Station',
-    address: '1 Le Loi Street, District 1, Ho Chi Minh City',
-    distance: '0.3 km',
-    availableBikes: 8,
-    availableEBikes: 5,
-    coordinates: { lat: 10.7719, lng: 106.6982 },
-    image: '/stations/ben-thanh.jpg',
-  },
-  {
-    id: '2',
-    name: 'Opera House Station',
-    address: '7 Lam Son Square, District 1, Ho Chi Minh City',
-    distance: '0.5 km',
-    availableBikes: 6,
-    availableEBikes: 4,
-    coordinates: { lat: 10.7769, lng: 106.7032 },
-    image: '/stations/opera-house.jpg',
-  },
-  {
-    id: '3',
-    name: 'Ba Son Metro Station',
-    address: '2 Ton Duc Thang Street, District 1, Ho Chi Minh City',
-    distance: '0.7 km',
-    availableBikes: 7,
-    availableEBikes: 3,
-    coordinates: { lat: 10.7836, lng: 106.7047 },
-    image: '/stations/ba-son.jpg',
-  },
-  {
-    id: '4',
-    name: 'Thu Thiem Metro Station',
-    address: 'Thu Thiem New Urban Area, District 2, Ho Chi Minh City',
-    distance: '1.2 km',
-    availableBikes: 5,
-    availableEBikes: 4,
-    coordinates: { lat: 10.7872, lng: 106.7223 },
-    image: '/stations/thu-thiem.jpg',
-  },
-  {
-    id: '5',
-    name: 'Saigon River Park Station',
-    address: 'Ton Duc Thang Street, District 1, Ho Chi Minh City',
-    distance: '0.9 km',
-    availableBikes: 4,
-    availableEBikes: 6,
-    coordinates: { lat: 10.7823, lng: 106.7065 },
-    image: '/stations/saigon-river.jpg',
-  },
-  {
-    id: '6',
-    name: 'Landmark 81 Station',
-    address: '720A Dien Bien Phu Street, Binh Thanh District, Ho Chi Minh City',
-    distance: '1.5 km',
-    availableBikes: 9,
-    availableEBikes: 7,
-    coordinates: { lat: 10.7949, lng: 106.7219 },
-    image: '/stations/landmark-81.jpg',
-  },
-  // Thu Duc City stations
-  {
-    id: '7',
-    name: 'VNU-HCM Station',
-    address: 'Linh Trung Ward, Thu Duc City, Ho Chi Minh City',
-    distance: '2.1 km',
-    availableBikes: 10,
-    availableEBikes: 8,
-    coordinates: { lat: 10.8700, lng: 106.8030 },
-    image: '/stations/vnu-hcm.jpg',
-  },
-  {
-    id: '8',
-    name: 'Thu Duc Market Station',
-    address: 'Thu Duc Market, Thu Duc City, Ho Chi Minh City',
-    distance: '2.3 km',
-    availableBikes: 6,
-    availableEBikes: 4,
-    coordinates: { lat: 10.8497, lng: 106.7539 },
-    image: '/stations/thu-duc-market.jpg',
-  },
-  {
-    id: '9',
-    name: 'Thu Thiem 2 Bridge Station',
-    address: 'Near Thu Thiem 2 Bridge, Thu Duc City, Ho Chi Minh City',
-    distance: '2.5 km',
-    availableBikes: 8,
-    availableEBikes: 6,
-    coordinates: { lat: 10.7942, lng: 106.7501 },
-    image: '/stations/thu-thiem-bridge.jpg',
-  },
-  {
-    id: '10',
-    name: 'High-Tech Park Station',
-    address: 'Saigon High-Tech Park, Thu Duc City, Ho Chi Minh City',
-    distance: '3.0 km',
-    availableBikes: 12,
-    availableEBikes: 10,
-    coordinates: { lat: 10.8456, lng: 106.7944 },
-    image: '/stations/high-tech-park.jpg',
-  },
-  {
-    id: '11',
-    name: 'Thu Duc Lake Park Station',
-    address: 'Thu Duc Lake Park, Thu Duc City, Ho Chi Minh City',
-    distance: '2.8 km',
-    availableBikes: 7,
-    availableEBikes: 5,
-    coordinates: { lat: 10.8600, lng: 106.7800 },
-    image: '/stations/thu-duc-lake.jpg',
-  },
-  // Stations near your location
-  {
-    id: '12',
-    name: 'Linh Trung Station',
-    address: 'Linh Trung Ward, Thu Duc City, Ho Chi Minh City',
-    distance: '0.5 km',
-    availableBikes: 8,
-    availableEBikes: 6,
-    coordinates: { lat: 10.8200, lng: 106.7820 },
-    image: '/stations/linh-trung.jpg',
-  },
-  {
-    id: '13',
-    name: 'Hi-Tech Park Gate 1',
-    address: 'Entrance 1, Saigon High-Tech Park, Thu Duc City',
-    distance: '0.8 km',
-    availableBikes: 10,
-    availableEBikes: 8,
-    coordinates: { lat: 10.8250, lng: 106.7850 },
-    image: '/stations/hitech-gate1.jpg',
-  },
-  {
-    id: '14',
-    name: 'Hi-Tech Park Gate 2',
-    address: 'Entrance 2, Saigon High-Tech Park, Thu Duc City',
-    distance: '1.0 km',
-    availableBikes: 9,
-    availableEBikes: 7,
-    coordinates: { lat: 10.8300, lng: 106.7900 },
-    image: '/stations/hitech-gate2.jpg',
-  },
-  {
-    id: '15',
-    name: 'Linh Trung Export Processing Zone',
-    address: 'Linh Trung Export Processing Zone, Thu Duc City',
-    distance: '1.2 km',
-    availableBikes: 7,
-    availableEBikes: 5,
-    coordinates: { lat: 10.8350, lng: 106.7950 },
-    image: '/stations/linh-trung-epz.jpg',
-  },
-  {
-    id: '16',
-    name: 'Thu Duc College Station',
-    address: 'Thu Duc College, Thu Duc City, Ho Chi Minh City',
-    distance: '1.5 km',
-    availableBikes: 6,
-    availableEBikes: 4,
-    coordinates: { lat: 10.8400, lng: 106.8000 },
-    image: '/stations/thu-duc-college.jpg',
-  },
-  {
-    id: '17',
-    name: 'Hi-Tech Park Research Center',
-    address: 'Research Center, Saigon High-Tech Park, Thu Duc City',
-    distance: '1.8 km',
-    availableBikes: 11,
-    availableEBikes: 9,
-    coordinates: { lat: 10.8450, lng: 106.8050 },
-    image: '/stations/hitech-research.jpg',
-  },
-  // Hanoi Highway stations
-  {
-    id: '18',
-    name: 'Hanoi Highway Station 1',
-    address: 'Near Thu Duc Intersection, Hanoi Highway, Thu Duc City',
-    distance: '2.0 km',
-    availableBikes: 9,
-    availableEBikes: 7,
-    coordinates: { lat: 10.8500, lng: 106.7600 },
-    image: '/stations/hanoi-highway-1.jpg',
-  },
-  {
-    id: '19',
-    name: 'Hanoi Highway Station 2',
-    address: 'Near VNU-HCM, Hanoi Highway, Thu Duc City',
-    distance: '2.2 km',
-    availableBikes: 8,
-    availableEBikes: 6,
-    coordinates: { lat: 10.8550, lng: 106.7650 },
-    image: '/stations/hanoi-highway-2.jpg',
-  },
-  {
-    id: '20',
-    name: 'Hanoi Highway Station 3',
-    address: 'Near Hi-Tech Park, Hanoi Highway, Thu Duc City',
-    distance: '2.5 km',
-    availableBikes: 10,
-    availableEBikes: 8,
-    coordinates: { lat: 10.8600, lng: 106.7700 },
-    image: '/stations/hanoi-highway-3.jpg',
-  },
-  {
-    id: '21',
-    name: 'Hanoi Highway Station 4',
-    address: 'Near Thu Duc College, Hanoi Highway, Thu Duc City',
-    distance: '2.8 km',
-    availableBikes: 7,
-    availableEBikes: 5,
-    coordinates: { lat: 10.8650, lng: 106.7750 },
-    image: '/stations/hanoi-highway-4.jpg',
-  },
-  {
-    id: '22',
-    name: 'Hanoi Highway Station 5',
-    address: 'Near Linh Trung EPZ, Hanoi Highway, Thu Duc City',
-    distance: '3.0 km',
-    availableBikes: 11,
-    availableEBikes: 9,
-    coordinates: { lat: 10.8700, lng: 106.7800 },
-    image: '/stations/hanoi-highway-5.jpg',
-  }
-];
+import { stationService, Station } from '../../lib/services/stationService';
 
 export default function MapPage() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showStations, setShowStations] = useState(true);
   const [distanceFilter, setDistanceFilter] = useState<number>(500); // Default to 500m
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'bikes' | 'docks'>('all');
   const [mapRef, setMapRef] = useState<LeafletMap | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Fetch stations data
+  const { data: stations = [], isLoading, error } = useQuery({
+    queryKey: ['stations'],
+    queryFn: stationService.getMapStations,
+  });
 
   // Get user's location
   useEffect(() => {
@@ -292,38 +62,46 @@ export default function MapPage() {
   };
 
   // Filter and sort stations based on distance from user
-  const filteredStations = mockStations
+  const filteredStations = stations
     .filter((station) => {
       // Filter by search query
       const matchesSearch = station.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         station.address.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Filter by availability
+      const totalAvailableBikes = station.availableStandardBikes + station.availableElectricBikes;
+      const availableDocks = station.capacity - totalAvailableBikes;
+      const matchesAvailability = 
+        availabilityFilter === 'all' ||
+        (availabilityFilter === 'bikes' && totalAvailableBikes > 0) ||
+        (availabilityFilter === 'docks' && availableDocks > 0);
 
       // Filter by distance if user location is available
       if (userLocation) {
         const distance = calculateDistance(
           userLocation.lat,
           userLocation.lng,
-          station.coordinates.lat,
-          station.coordinates.lng
+          station.latitude,
+          station.longitude
         );
-        return matchesSearch && distance <= distanceFilter;
+        return matchesSearch && matchesAvailability && (distanceFilter === -1 || distance <= distanceFilter);
       }
 
-      return matchesSearch;
+      return matchesSearch && matchesAvailability;
     })
     .sort((a, b) => {
       if (!userLocation) return 0;
       const distanceA = calculateDistance(
         userLocation.lat,
         userLocation.lng,
-        a.coordinates.lat,
-        a.coordinates.lng
+        a.latitude,
+        a.longitude
       );
       const distanceB = calculateDistance(
         userLocation.lat,
         userLocation.lng,
-        b.coordinates.lat,
-        b.coordinates.lng
+        b.latitude,
+        b.longitude
       );
       return distanceA - distanceB;
     });
@@ -331,10 +109,20 @@ export default function MapPage() {
   const handleStationSelect = (station: Station) => {
     setSelectedStation(station);
     if (mapRef) {
-      // Zoom to the selected station
-      mapRef.setView([station.coordinates.lat, station.coordinates.lng], 18);
+      mapRef.setView([station.latitude, station.longitude], 18);
     }
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-6rem)]">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Error Loading Stations</h2>
+          <p className="text-gray-600">Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-6rem)]">
@@ -398,6 +186,53 @@ export default function MapPage() {
               />
               <span className="text-sm text-gray-700">Within 5km</span>
             </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="radio"
+                name="distance"
+                checked={distanceFilter === -1}
+                onChange={() => setDistanceFilter(-1)}
+                className="rounded-full border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">All stations</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Availability Filter */}
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Availability</h3>
+          <div className="grid grid-cols-1 gap-2">
+            <label className="flex items-center space-x-2">
+              <input
+                type="radio"
+                name="availability"
+                checked={availabilityFilter === 'all'}
+                onChange={() => setAvailabilityFilter('all')}
+                className="rounded-full border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show all stations</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="radio"
+                name="availability"
+                checked={availabilityFilter === 'bikes'}
+                onChange={() => setAvailabilityFilter('bikes')}
+                className="rounded-full border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Has available bikes</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="radio"
+                name="availability"
+                checked={availabilityFilter === 'docks'}
+                onChange={() => setAvailabilityFilter('docks')}
+                className="rounded-full border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Has available docks</span>
+            </label>
           </div>
         </div>
 
@@ -408,7 +243,9 @@ export default function MapPage() {
               className="flex items-center justify-between w-full text-left"
               onClick={() => setShowStations(!showStations)}
             >
-              <span className="font-medium">Nearby Stations ({filteredStations.length})</span>
+              <span className="font-medium">
+                {isLoading ? 'Loading Stations...' : `Nearby Stations (${filteredStations.length})`}
+              </span>
               {showStations ? (
                 <ChevronUp className="w-4 h-4 text-gray-500" />
               ) : (
@@ -421,7 +258,7 @@ export default function MapPage() {
             <div className="p-4 space-y-4">
               {filteredStations.map((station) => (
                 <div
-                key={station.id}
+                  key={station.id}
                   className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                     selectedStation?.id === station.id
                       ? 'border-primary-500 bg-primary-50'
@@ -432,7 +269,7 @@ export default function MapPage() {
                   <div className="flex items-start space-x-4">
                     <div className="w-16 h-16 rounded-md overflow-hidden">
                       <img
-                        src={station.image}
+                        src={station.imageUrl}
                         alt={station.name}
                         className="w-full h-full object-cover"
                       />
@@ -440,20 +277,35 @@ export default function MapPage() {
                     <div className="flex-1">
                       <h3 className="font-medium">{station.name}</h3>
                       <p className="text-sm text-gray-600">{station.address}</p>
-                      <p className="text-sm text-gray-500 mt-1">{station.distance}</p>
+                      {userLocation && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          {(calculateDistance(
+                            userLocation.lat,
+                            userLocation.lng,
+                            station.latitude,
+                            station.longitude
+                          ) / 1000).toFixed(1)} km away
+                        </p>
+                      )}
                       <div className="flex items-center space-x-4 mt-2">
                         <div className="flex items-center">
                           <Bike className="w-4 h-4 text-gray-400 mr-1" />
-                          <span className="text-sm text-gray-600">{station.availableBikes}</span>
+                          <span className="text-sm text-gray-600">{station.availableStandardBikes}</span>
                         </div>
                         <div className="flex items-center">
                           <Bike className="w-4 h-4 text-primary-500 mr-1" />
-                          <span className="text-sm text-gray-600">{station.availableEBikes}</span>
+                          <span className="text-sm text-gray-600">{station.availableElectricBikes}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-sm text-gray-500 mr-1">Docks:</span>
+                          <span className="text-sm text-gray-600">
+                            {station.availableStandardBikes + station.availableElectricBikes}/{station.capacity}
+                          </span>
                         </div>
                       </div>
-          </div>
-        </div>
-      </div>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -465,6 +317,8 @@ export default function MapPage() {
         <Map 
           selectedStation={selectedStation} 
           onMapRef={setMapRef}
+          stations={stations}
+          isLoading={isLoading}
         />
       </div>
     </div>

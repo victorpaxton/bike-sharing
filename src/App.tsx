@@ -19,10 +19,7 @@ import UserManagementPage from './pages/admin/UserManagementPage';
 import PricingManagementPage from './pages/admin/PricingManagementPage';
 import StationManagementPage from './pages/admin/StationManagementPage';
 import BikeManagementPage from './pages/admin/BikeManagementPage';
-import ActiveRentalPage from './pages/rental/ActiveRentalPage';
-import RideHistoryPage from './pages/history/RideHistoryPage';
-import ProfilePage from './pages/ProfilePage';
-import NotFoundPage from './pages/NotFoundPage';
+import { ProtectedRoute } from './guards/ProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,28 +44,31 @@ function App() {
 
             {/* Protected routes */}
             <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/map" element={<MapPage />} />
-              <Route path="/reservation/:stationId" element={<ReservationPage />} />
-              <Route path="/reservation/confirmation" element={<ReservationConfirmationPage />} />
-              <Route path="/rides" element={<RidesPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+              <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
+              <Route path="/reservation/:stationId" element={<ProtectedRoute><ReservationPage /></ProtectedRoute>} />
+              <Route path="/reservation/confirmation" element={<ProtectedRoute><ReservationConfirmationPage /></ProtectedRoute>} />
+              <Route path="/rides" element={<ProtectedRoute><RidesPage /></ProtectedRoute>} />
+              <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
             </Route>
 
             {/* Admin routes */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="dashboard" element={<AdminDashboardPage />} />
-              <Route path="users" element={<UserManagementPage />} />
-              <Route path="stations" element={<StationManagementPage />} />
-              <Route path="bikes" element={<BikeManagementPage />} />
-              <Route path="system" element={<div>System Configuration</div>} />
-              <Route path="pricing" element={<PricingManagementPage />} />
-              <Route path="promotions" element={<div>Promotions</div>} />
+              <Route path="dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+              <Route path="users" element={<ProtectedRoute><UserManagementPage /></ProtectedRoute>} />
+              <Route path="stations" element={<ProtectedRoute><StationManagementPage /></ProtectedRoute>} />
+              <Route path="bikes" element={<ProtectedRoute><BikeManagementPage /></ProtectedRoute>} />
+              <Route path="system" element={<ProtectedRoute><div>System Configuration</div></ProtectedRoute>} />
+              <Route path="pricing" element={<ProtectedRoute><PricingManagementPage /></ProtectedRoute>} />
+              <Route path="promotions" element={<ProtectedRoute><div>Promotions</div></ProtectedRoute>} />
             </Route>
 
             {/* Redirect root to dashboard or login based on auth status */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            {/* Catch all route for 404 */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
           <Toaster />
         </AuthProvider>

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Bell, ChevronDown, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Bell, ChevronDown, Menu, X, LogOut, User, Settings } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import Logo from './Logo';
 
 const navItems = [
@@ -12,9 +12,11 @@ const navItems = [
 ];
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const getInitials = (name: string) => {
     return name
@@ -22,6 +24,25 @@ export default function Header() {
       .map(n => n[0])
       .join('')
       .toUpperCase();
+  };
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
   };
 
   return (
@@ -74,14 +95,48 @@ export default function Header() {
               </button>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
-                {user?.name ? getInitials(user.name) : 'U'}
+            <div className="relative" ref={userMenuRef}>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
+                  {user?.fullName ? getInitials(user.fullName) : 'U'}
+                </div>
+                <span className="text-gray-700">{user?.fullName || 'User'}</span>
+                <button 
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                >
+                  <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
               </div>
-              <span className="text-gray-700">{user?.name || 'User'}</span>
-              <button className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-                <ChevronDown className="w-5 h-5 text-gray-600" />
-              </button>
+
+              {/* User Dropdown Menu */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5">
+                  <Link
+                    to="/profile"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsUserMenuOpen(false)}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Link>
+                  <Link
+                    to="/settings"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsUserMenuOpen(false)}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -103,11 +158,35 @@ export default function Header() {
                   {item.name}
                 </Link>
               ))}
-              <div className="flex items-center space-x-2 px-4 py-2">
-                <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
-                  {user?.name ? getInitials(user.name) : 'U'}
+              <div className="flex flex-col space-y-2 px-4 py-2">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
+                    {user?.fullName ? getInitials(user.fullName) : 'U'}
+                  </div>
+                  <span className="text-gray-700">{user?.fullName || 'User'}</span>
                 </div>
-                <span className="text-gray-700">{user?.name || 'User'}</span>
+                <div className="flex flex-col space-y-1">
+                  <Link
+                    to="/profile"
+                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    to="/settings"
+                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg text-left"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
             </nav>
           </div>

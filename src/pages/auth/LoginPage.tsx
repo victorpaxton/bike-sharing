@@ -86,12 +86,12 @@ const LoginPage = () => {
           <div className="flex items-center justify-between mb-8">
             <Logo />
             <div className="flex items-center space-x-4">
-              <button className="p-2 text-gray-600 hover:text-gray-900">
+              {/* <button className="p-2 text-gray-600 hover:text-gray-900">
                 <Globe className="w-5 h-5" />
               </button>
               <button className="p-2 text-gray-600 hover:text-gray-900">
                 <Download className="w-5 h-5" />
-              </button>
+              </button> */}
             </div>
           </div>
 

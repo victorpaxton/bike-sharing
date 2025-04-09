@@ -11,17 +11,33 @@ const LoginPage = () => {
   const from = location.state?.from?.pathname || '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const loginMutation = useLogin();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await loginMutation.mutateAsync({ email, password });
-      // After successful login, navigate to the intended page
-      navigate(from, { replace: true });
+      // Get the login response data
+      const loginResponse = await loginMutation.mutateAsync({ email, password });
+
+      // Check if login was successful and data exists
+      if (loginResponse?.success && loginResponse?.data) {
+        const userRole = loginResponse.data.roles?.toLowerCase(); // Ensure case-insensitivity
+
+        // Redirect based on role
+        if (userRole === 'admin') {
+          navigate('/admin', { replace: true }); // Redirect admin to admin page
+        } else {
+          navigate(from, { replace: true }); // Redirect other users to original destination or dashboard
+        }
+      } else {
+        // Handle cases where login might not return expected structure (optional, depends on API reliability)
+        console.error('Login response structure unexpected:', loginResponse);
+        // Optionally navigate to a default page or show a generic error
+        navigate('/dashboard', { replace: true }); // Fallback navigation
+      }
+
     } catch (error) {
-      // Error handling is managed by the mutation
+      // Error handling is managed by the mutation's onError
       console.error('Login failed:', error);
     }
   };
@@ -141,18 +157,6 @@ const LoginPage = () => {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  disabled={loginMutation.isPending}
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
               </div>
 
               <div className="text-sm">

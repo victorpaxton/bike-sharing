@@ -20,8 +20,8 @@ export default function AdminLayout() {
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  // Redirect non-admin users
-  if (!user?.isAdmin) {
+  // Redirect non-admin users based on the roles string
+  if (user?.roles?.toLowerCase() !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -63,7 +63,7 @@ export default function AdminLayout() {
             <div className="flex items-center">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {user?.name}
+                  {user?.fullName}
                 </p>
                 <p className="text-sm text-gray-400 truncate">
                   {user?.email}

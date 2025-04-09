@@ -1,13 +1,5 @@
 import { Star, User } from 'lucide-react';
-
-interface Review {
-  id: string;
-  userId: string;
-  userName: string;
-  rating: number;
-  comment: string;
-  date: string;
-}
+import { Review } from '../../lib/services/reviewService';
 
 interface BikeReviewsProps {
   reviews: Review[];
@@ -47,7 +39,7 @@ const BikeReviews = ({ reviews, averageRating, totalReviews }: BikeReviewsProps)
                 <User className="w-4 h-4 text-gray-500" />
               </div>
               <div>
-                <div className="font-medium text-gray-900">{review.userName}</div>
+                <div className="font-medium text-gray-900">{review.user.fullName}</div>
                 <div className="flex items-center space-x-1">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
@@ -61,7 +53,9 @@ const BikeReviews = ({ reviews, averageRating, totalReviews }: BikeReviewsProps)
                       />
                     ))}
                   </div>
-                  <span className="text-xs text-gray-500">{review.date}</span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
             </div>

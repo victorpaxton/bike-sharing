@@ -1,149 +1,93 @@
 import { useState } from 'react';
-import { Navigation, Timer, DollarSign, MapPin } from 'lucide-react';
-import { calculateRideCost, formatPrice } from '../../utils/pricing';
+import { useQuery } from '@tanstack/react-query';
+import { reservationService, Reservation } from '../../lib/services/reservationService';
+import { Loader2, AlertCircle, Bike } from 'lucide-react';
+import dayjs from 'dayjs';
+import { RideHistoryItem } from '../../components/rides/RideHistoryItem';
 
-interface RideData {
-  id: string;
-  from: string;
-  to: string;
-  date: string;
-  bikeId: string;
-  distance: string;
-  durationMinutes: number;
-  isPremiumUser: boolean;
-  ridesCompletedToday: number;
-}
-
-const mockRides: RideData[] = [
-  {
-    id: '1',
-    from: 'Central Park Station',
-    to: 'Times Square Station',
-    date: 'Today, 8:30 AM',
-    bikeId: 'B-12345',
-    distance: '3.2 km',
-    durationMinutes: 15,
-    isPremiumUser: true,
-    ridesCompletedToday: 0
-  },
-  {
-    id: '2',
-    from: 'Union Square Station',
-    to: 'Brooklyn Bridge Station',
-    date: 'Yesterday, 6:15 PM',
-    bikeId: 'B-67890',
-    distance: '5.1 km',
-    durationMinutes: 25,
-    isPremiumUser: true,
-    ridesCompletedToday: 1
-  },
-  {
-    id: '3',
-    from: 'Battery Park Station',
-    to: 'Hudson Yards Station',
-    date: 'Saturday, 2:00 PM',
-    bikeId: 'B-24680',
-    distance: '8.7 km',
-    durationMinutes: 45,
-    isPremiumUser: true,
-    ridesCompletedToday: 2
-  }
-];
-
-const RideCard = ({ ride }: { ride: RideData }) => {
-  const pricing = calculateRideCost({
-    durationMinutes: ride.durationMinutes,
-    distanceKm: parseFloat(ride.distance),
-    isPremiumUser: ride.isPremiumUser,
-    ridesCompletedToday: ride.ridesCompletedToday
-  });
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center text-gray-900">
-            <span className="font-medium">{ride.from}</span>
-            <MapPin className="w-4 h-4 mx-2 text-gray-400" />
-            <span className="font-medium">{ride.to}</span>
-          </div>
-          <div className="mt-1 flex items-center space-x-3 text-sm text-gray-500">
-            <span>{ride.date}</span>
-            <span className="text-gray-300">•</span>
-            <span>Bike: {ride.bikeId}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between py-2 border-t border-gray-100">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center text-gray-600">
-            <Navigation className="w-4 h-4 mr-1.5 text-primary-500" />
-            <span className="text-sm">{ride.distance}</span>
-          </div>
-          <div className="flex items-center text-gray-600">
-            <Timer className="w-4 h-4 mr-1.5 text-primary-500" />
-            <span className="text-sm">{ride.durationMinutes} min</span>
-          </div>
-          <div className="flex items-center text-gray-600">
-            <DollarSign className="w-4 h-4 mr-1.5 text-primary-500" />
-            <span className="text-sm">{formatPrice(pricing.totalCost)}</span>
-          </div>
-        </div>
-        <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-          View Details
-        </button>
-      </div>
-    </div>
-  );
-};
+type FilterPeriod = 'week' | 'month' | 'year';
 
 export default function RidesPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('week');
+  const [filter, setFilter] = useState<FilterPeriod>('week');
+
+  const { data: rideHistory = [], isLoading, isError } = useQuery<Reservation[], Error>({
+    queryKey: ['rideHistory'],
+    queryFn: reservationService.getRideHistory,
+  });
+
+  const filteredHistory = rideHistory
+    .filter(ride => {
+      if (!ride.endTime) return false;
+      const rideEndTime = dayjs(ride.endTime);
+      const now = dayjs();
+      switch (filter) {
+        case 'week':
+          return rideEndTime.isAfter(now.subtract(1, 'week'));
+        case 'month':
+          return rideEndTime.isAfter(now.subtract(1, 'month'));
+        case 'year':
+          return rideEndTime.isAfter(now.subtract(1, 'year'));
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => {
+      const timeA = a.endTime ? dayjs(a.endTime).valueOf() : 0;
+      const timeB = b.endTime ? dayjs(b.endTime).valueOf() : 0;
+      return timeB - timeA;
+    });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ride History</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setSelectedPeriod('week')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              selectedPeriod === 'week'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setSelectedPeriod('month')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              selectedPeriod === 'month'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Month
-          </button>
-          <button
-            onClick={() => setSelectedPeriod('year')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              selectedPeriod === 'year'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Year
-          </button>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">Ride History</h1>
+        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+          {(['week', 'month', 'year'] as FilterPeriod[]).map((period) => (
+            <button
+              key={period}
+              onClick={() => setFilter(period)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                filter === period
+                  ? 'bg-white text-primary-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              {period.charAt(0).toUpperCase() + period.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="space-y-3">
-        {mockRides.map((ride) => (
-          <RideCard key={ride.id} ride={ride} />
-        ))}
-      </div>
+      {isLoading && (
+        <div className="text-center py-10">
+          <Loader2 className="w-8 h-8 mx-auto text-primary-600 animate-spin mb-3" />
+          <p className="text-gray-500">Loading ride history...</p>
+        </div>
+      )}
+
+      {isError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center text-red-700">
+          <AlertCircle className="w-8 h-8 mx-auto mb-3" />
+          <p className="font-medium">Failed to load ride history.</p>
+          <p className="text-sm">Please try again later.</p>
+        </div>
+      )}
+
+      {!isLoading && !isError && filteredHistory.length === 0 && (
+        <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-lg">
+          <Bike className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-500 font-medium">No rides found for the selected period.</p>
+          <p className="text-gray-400 text-sm mt-1">Go take a ride!</p>
+        </div>
+      )}
+
+      {!isLoading && !isError && filteredHistory.length > 0 && (
+        <div>
+          {filteredHistory.map((ride) => (
+            <RideHistoryItem key={ride.id} ride={ride} />
+          ))}
+        </div>
+      )}
     </div>
   );
 } 

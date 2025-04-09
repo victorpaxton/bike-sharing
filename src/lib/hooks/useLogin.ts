@@ -21,7 +21,6 @@ export function useLogin() {
         fullName,
         roles,
       });
-      navigate('/dashboard');
     },
   });
 } 

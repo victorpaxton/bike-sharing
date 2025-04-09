@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { LoginResponse } from '../types/auth'; // Corrected path, removed unused User
 
 // Create axios instance with default config
 const api = axios.create({
@@ -45,4 +46,23 @@ api.interceptors.response.use(
   }
 );
 
+// Registration Request Type
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+}
+
+// Assuming registration returns the same structure as login
+export type RegisterResponse = LoginResponse;
+
+// Define registration function separately
+export const registerUser = async (userData: RegisterRequest): Promise<RegisterResponse> => {
+  // Use the created api instance for the call
+  const response = await api.post<RegisterResponse>('/auth/register', userData);
+  return response.data;
+};
+
+// Export the api instance as default
 export default api; 

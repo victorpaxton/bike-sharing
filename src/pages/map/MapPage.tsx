@@ -4,6 +4,7 @@ import Map from '../../components/map/Map';
 import { Bike, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Map as LeafletMap } from 'leaflet';
 import { stationService, Station } from '../../lib/services/stationService';
+import { useNavigate } from 'react-router-dom';
 
 export default function MapPage() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
@@ -13,6 +14,7 @@ export default function MapPage() {
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'bikes' | 'docks'>('all');
   const [mapRef, setMapRef] = useState<LeafletMap | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const navigate = useNavigate();
 
   // Fetch stations data
   const { data: stations = [], isLoading, error } = useQuery({
@@ -303,6 +305,15 @@ export default function MapPage() {
                           </span>
                         </div>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/reservation/${station.id}`);
+                        }}
+                        className="mt-2 w-full bg-primary-600 text-white px-4 py-2 rounded-md text-sm hover:bg-primary-700 transition-colors"
+                      >
+                        Reserve a Bike
+                      </button>
                     </div>
                   </div>
                 </div>

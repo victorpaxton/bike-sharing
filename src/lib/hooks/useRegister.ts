@@ -27,7 +27,7 @@ export function useRegister() {
       // Handle API call errors (e.g., email already exists)
       console.error("Registration error:", error);
       // The error message from the backend might be useful here
-      toast('error', `Registration Failed: ${error.message || 'Please check your details and try again.'}`);
+      toast('error', `${error.response?.data?.message || 'Please check your details and try again.'}`);
     },
   });
 } 

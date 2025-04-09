@@ -1,59 +1,40 @@
-import { useState, useEffect } from 'react';
-import { MapPin, X, Save } from 'lucide-react';
-
-interface Station {
-  id: string;
-  name: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  capacity: number;
-  standardBikes: number;
-  electricBikes: number;
-  availableDocks: number;
-  status: 'active' | 'maintenance' | 'inactive';
-  address: string;
-  lastMaintenance: string;
-}
+import { useState, useEffect, useRef } from 'react';
+import { MapPin, X, Save, Upload } from 'lucide-react';
+import { CreateStationRequest } from '../../lib/services/stationService';
 
 interface StationFormProps {
-  station?: Station;
-  onSave: (station: Omit<Station, 'id'>) => void;
+  onSave: (station: CreateStationRequest) => void;
   onClose: () => void;
 }
 
-export default function StationForm({ station, onSave, onClose }: StationFormProps) {
-  const [formData, setFormData] = useState<Omit<Station, 'id'>>({
+export default function StationForm({ onSave, onClose }: StationFormProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState<CreateStationRequest>({
     name: '',
-    location: {
-      lat: 0,
-      lng: 0,
-    },
-    capacity: 0,
-    standardBikes: 0,
-    electricBikes: 0,
-    availableDocks: 0,
-    status: 'active',
     address: '',
-    lastMaintenance: new Date().toISOString(),
+    latitude: 0,
+    longitude: 0,
+    city: '',
+    district: '',
+    ward: '',
+    base64Image: '',
+    capacity: 0,
   });
+  const [previewImage, setPreviewImage] = useState<string>('');
 
-  useEffect(() => {
-    if (station) {
-      const { id: _, ...stationData } = station;
-      setFormData(stationData);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        // Remove data:image/jpeg;base64, prefix
+        const base64Data = base64String.split(',')[1];
+        setFormData({ ...formData, base64Image: base64Data });
+        setPreviewImage(base64String);
+      };
+      reader.readAsDataURL(file);
     }
-  }, [station]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Calculate available docks before saving
-    const availableDocks = formData.capacity - (formData.standardBikes + formData.electricBikes);
-    onSave({
-      ...formData,
-      availableDocks,
-    });
   };
 
   const handleLocationClick = () => {
@@ -62,10 +43,8 @@ export default function StationForm({ station, onSave, onClose }: StationFormPro
         (position) => {
           setFormData({
             ...formData,
-            location: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            },
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
           });
         },
         (error) => {
@@ -75,13 +54,16 @@ export default function StationForm({ station, onSave, onClose }: StationFormPro
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000] p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {station ? 'Edit Station' : 'Add New Station'}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900">Add New Station</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500 transition-colors"
@@ -92,6 +74,61 @@ export default function StationForm({ station, onSave, onClose }: StationFormPro
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Station Image */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Station Image
+              </label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                <div className="space-y-1 text-center">
+                  {previewImage ? (
+                    <div className="relative w-full max-w-md mx-auto">
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="rounded-lg max-h-48 mx-auto"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewImage('');
+                          setFormData({ ...formData, base64Image: '' });
+                        }}
+                        className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-gray-100"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600">
+                        <label
+                          htmlFor="file-upload"
+                          className="relative cursor-pointer rounded-md font-medium text-primary-600 hover:text-primary-500"
+                        >
+                          <span>Upload a file</span>
+                          <input
+                            id="file-upload"
+                            ref={fileInputRef}
+                            name="file-upload"
+                            type="file"
+                            className="sr-only"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                          />
+                        </label>
+                        <p className="pl-1">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        PNG, JPG, GIF up to 10MB
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Station Name
@@ -124,58 +161,52 @@ export default function StationForm({ station, onSave, onClose }: StationFormPro
               />
             </div>
 
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Location
+                City
               </label>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <input
-                    type="number"
-                    value={formData.location.lat}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        location: {
-                          ...formData.location,
-                          lat: parseFloat(e.target.value),
-                        },
-                      })
-                    }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Latitude"
-                    step="any"
-                    required
-                  />
-                </div>
-                <div className="flex-1">
-                  <input
-                    type="number"
-                    value={formData.location.lng}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        location: {
-                          ...formData.location,
-                          lng: parseFloat(e.target.value),
-                        },
-                      })
-                    }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Longitude"
-                    step="any"
-                    required
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLocationClick}
-                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center whitespace-nowrap"
-                >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Use Current
-                </button>
-              </div>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={(e) =>
+                  setFormData({ ...formData, city: e.target.value })
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Enter city"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                District
+              </label>
+              <input
+                type="text"
+                value={formData.district}
+                onChange={(e) =>
+                  setFormData({ ...formData, district: e.target.value })
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Enter district"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ward
+              </label>
+              <input
+                type="text"
+                value={formData.ward}
+                onChange={(e) =>
+                  setFormData({ ...formData, ward: e.target.value })
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Enter ward"
+                required
+              />
             </div>
 
             <div>
@@ -199,85 +230,69 @@ export default function StationForm({ station, onSave, onClose }: StationFormPro
               />
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
+                Location
               </label>
-              <select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    status: e.target.value as 'active' | 'maintenance' | 'inactive',
-                  })
-                }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-              >
-                <option value="active">Active</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Standard Bikes
-              </label>
-              <input
-                type="number"
-                value={formData.standardBikes}
-                onChange={(e) => {
-                  const newStandardBikes = parseInt(e.target.value);
-                  setFormData({
-                    ...formData,
-                    standardBikes: newStandardBikes,
-                  });
-                }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                min="0"
-                max={formData.capacity - formData.electricBikes}
-                placeholder="Enter number of standard bikes"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Electric Bikes
-              </label>
-              <input
-                type="number"
-                value={formData.electricBikes}
-                onChange={(e) => {
-                  const newElectricBikes = parseInt(e.target.value);
-                  setFormData({
-                    ...formData,
-                    electricBikes: newElectricBikes,
-                  });
-                }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                min="0"
-                max={formData.capacity - formData.standardBikes}
-                placeholder="Enter number of electric bikes"
-                required
-              />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    value={formData.latitude}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        latitude: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Latitude"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    value={formData.longitude}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        longitude: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Longitude"
+                    step="any"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLocationClick}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center whitespace-nowrap"
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Use Current
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-200 flex justify-end gap-3">
+          <div className="flex justify-end space-x-3 pt-6 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center"
             >
               <Save className="w-4 h-4 mr-2" />
-              {station ? 'Save Changes' : 'Add Station'}
+              Save Station
             </button>
           </div>
         </form>

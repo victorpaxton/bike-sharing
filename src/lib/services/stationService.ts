@@ -59,6 +59,18 @@ export interface StationResponse {
   timestamp: string;
 }
 
+export interface CreateStationRequest {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  city: string;
+  district: string;
+  ward: string;
+  base64Image: string;
+  capacity: number;
+}
+
 export const stationService = {
   getMapStations: async (): Promise<Station[]> => {
     const response = await api.get<StationsResponse>('/stations/map');
@@ -85,5 +97,10 @@ export const stationService = {
       },
     });
     return response.data.data; // Assuming the response structure matches StationsResponse
+  },
+
+  createStation: async (data: CreateStationRequest): Promise<Station> => {
+    const response = await api.post<StationResponse>('/stations', data);
+    return response.data.data;
   },
 }; 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import {
   List,
@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import StationForm from '../../components/admin/StationForm';
+import { stationService, Station as ApiStation, CreateStationRequest } from '../../lib/services/stationService';
 
-interface Station {
+interface FormStation {
   id: string;
   name: string;
   location: {
@@ -31,71 +32,101 @@ interface Station {
   lastMaintenance: string;
 }
 
-const mockStations: Station[] = [
-  {
-    id: '1',
-    name: 'Central Park Station',
+const mapApiToFormStation = (apiStation: ApiStation): FormStation => {
+  return {
+    id: apiStation.id,
+    name: apiStation.name,
     location: {
-      lat: 40.7829,
-      lng: -73.9654,
+      lat: apiStation.latitude,
+      lng: apiStation.longitude,
     },
-    capacity: 20,
-    standardBikes: 10,
-    electricBikes: 5,
-    availableDocks: 5,
-    status: 'active',
-    address: 'Central Park, New York, NY',
-    lastMaintenance: '2024-03-15',
-  },
-  {
-    id: '2',
-    name: 'Times Square Hub',
-    location: {
-      lat: 40.758,
-      lng: -73.9855,
-    },
-    capacity: 30,
-    standardBikes: 15,
-    electricBikes: 5,
-    availableDocks: 10,
-    status: 'maintenance',
-    address: 'Times Square, New York, NY',
-    lastMaintenance: '2024-04-01',
-  },
-];
+    capacity: apiStation.capacity,
+    standardBikes: apiStation.availableStandardBikes,
+    electricBikes: apiStation.availableElectricBikes,
+    availableDocks: apiStation.capacity - (apiStation.availableStandardBikes + apiStation.availableElectricBikes),
+    status: apiStation.status ? 'active' : 'inactive',
+    address: apiStation.address,
+    lastMaintenance: new Date().toISOString(), // Default to current date
+  };
+};
+
+const mapFormToApiStation = (formStation: Omit<FormStation, 'id'>): Omit<ApiStation, 'id'> => {
+  return {
+    name: formStation.name,
+    address: formStation.address,
+    imageUrl: '', // Default empty image URL
+    latitude: formStation.location.lat,
+    longitude: formStation.location.lng,
+    city: '', // Default empty city
+    district: '', // Default empty district
+    ward: '', // Default empty ward
+    availableStandardBikes: formStation.standardBikes,
+    availableElectricBikes: formStation.electricBikes,
+    capacity: formStation.capacity,
+    status: formStation.status === 'active',
+    bikes: [], // Default empty bikes array
+  };
+};
 
 export default function StationManagementPage() {
-  const [stations, setStations] = useState<Station[]>(mockStations);
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [stations, setStations] = useState<ApiStation[]>([]);
+  const [selectedStation, setSelectedStation] = useState<ApiStation | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingStation, setEditingStation] = useState<Station | undefined>();
+  const [editingStation, setEditingStation] = useState<FormStation | undefined>();
   const [view, setView] = useState<'map' | 'list'>('map');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  useEffect(() => {
+    const fetchStations = async () => {
+      try {
+        setIsLoading(true);
+        const data = await stationService.getMapStations();
+        setStations(data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load stations. Please try again later.');
+        console.error('Error fetching stations:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStations();
+  }, []);
 
   const filteredStations = stations.filter((station) => {
     const matchesSearch = station.name
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
     const matchesStatus =
-      statusFilter === 'all' || station.status === statusFilter;
+      statusFilter === 'all' || 
+      (statusFilter === 'active' && station.status) ||
+      (statusFilter === 'inactive' && !station.status);
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddStation = (stationData: Omit<Station, 'id'>) => {
-    const newStation: Station = {
-      ...stationData,
-      id: Date.now().toString(),
-    };
-    setStations([...stations, newStation]);
-    setShowForm(false);
+  const handleAddStation = async (formData: CreateStationRequest) => {
+    try {
+      const newStation = await stationService.createStation(formData);
+      // Add the new station at the beginning of the list
+      setStations([newStation, ...stations]);
+      setShowForm(false);
+    } catch (err) {
+      console.error('Error creating station:', err);
+      // TODO: Show error toast/notification
+    }
   };
 
-  const handleEditStation = (stationData: Omit<Station, 'id'>) => {
+  const handleEditStation = (formData: Omit<FormStation, 'id'>) => {
     if (editingStation) {
+      // TODO: Implement API call to update station
       const updatedStations = stations.map((station) =>
         station.id === editingStation.id
-          ? { ...stationData, id: station.id }
+          ? { ...mapFormToApiStation(formData), id: station.id }
           : station
       );
       setStations(updatedStations);
@@ -105,24 +136,49 @@ export default function StationManagementPage() {
   };
 
   const handleDeleteStation = (stationId: string) => {
+    // TODO: Implement API call to delete station
     setStations(stations.filter((station) => station.id !== stationId));
     if (selectedStation?.id === stationId) {
       setSelectedStation(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'maintenance':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const getStatusColor = (status: boolean) => {
+    return status ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+  };
+
+  const handleStationClick = async (station: ApiStation) => {
+    try {
+      setIsLoadingDetails(true);
+      const detailedStation = await stationService.getStationById(station.id);
+      setSelectedStation(detailedStation);
+    } catch (err) {
+      console.error('Error fetching station details:', err);
+      // Keep the basic station info if detailed fetch fails
+      setSelectedStation(station);
+    } finally {
+      setIsLoadingDetails(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500 text-center">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+          <p className="text-lg font-medium">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -185,7 +241,6 @@ export default function StationManagementPage() {
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
-          <option value="maintenance">Maintenance</option>
           <option value="inactive">Inactive</option>
         </select>
       </div>
@@ -196,7 +251,7 @@ export default function StationManagementPage() {
           {view === 'map' ? (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden h-[600px]">
               <MapContainer
-                center={[40.7829, -73.9654]}
+                center={[10.762622, 106.660172]}
                 zoom={13}
                 className="h-full w-full"
               >
@@ -207,12 +262,9 @@ export default function StationManagementPage() {
                 {filteredStations.map((station) => (
                   <Marker
                     key={station.id}
-                    position={[
-                      station.location.lat,
-                      station.location.lng,
-                    ]}
+                    position={[station.latitude, station.longitude]}
                     eventHandlers={{
-                      click: () => setSelectedStation(station),
+                      click: () => handleStationClick(station),
                     }}
                   >
                     <Popup>
@@ -252,15 +304,30 @@ export default function StationManagementPage() {
                     <tr
                       key={station.id}
                       className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setSelectedStation(station)}
+                      onClick={() => handleStationClick(station)}
                     >
                       <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {station.name}
+                        <div className="flex items-center space-x-4">
+                          <div className="h-16 w-24 flex-shrink-0 rounded-lg overflow-hidden">
+                            {station.imageUrl ? (
+                              <img
+                                src={station.imageUrl}
+                                alt={`${station.name} station`}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+                                <MapPin className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {station.address}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {station.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {station.address}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -270,7 +337,7 @@ export default function StationManagementPage() {
                             station.status
                           )}`}
                         >
-                          {station.status}
+                          {station.status ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
@@ -278,13 +345,10 @@ export default function StationManagementPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-500">
-                          {station.standardBikes} standard
+                          {station.availableStandardBikes} standard
                         </div>
                         <div className="text-sm text-gray-500">
-                          {station.electricBikes} electric
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {station.availableDocks} docks
+                          {station.availableElectricBikes} electric
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -293,7 +357,7 @@ export default function StationManagementPage() {
                             className="text-gray-400 hover:text-gray-500"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setEditingStation(station);
+                              setEditingStation(mapApiToFormStation(station));
                               setShowForm(true);
                             }}
                           >
@@ -321,97 +385,143 @@ export default function StationManagementPage() {
         {/* Station Details Panel */}
         {selectedStation && (
           <div className="w-80 bg-white rounded-lg shadow-sm p-6 space-y-6 h-fit">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">
-                  {selectedStation.name}
-                </h2>
-                <p className="text-sm text-gray-500">{selectedStation.address}</p>
+            {isLoadingDetails ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
               </div>
-              <button
-                className="text-gray-400 hover:text-gray-500"
-                onClick={() => {
-                  setEditingStation(selectedStation);
-                  setShowForm(true);
-                }}
-              >
-                <Edit2 className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-medium text-gray-500 mb-2">
-                  Status
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                    selectedStation.status
-                  )}`}
-                >
-                  {selectedStation.status}
-                </span>
-              </div>
-
-              <div>
-                <div className="text-sm font-medium text-gray-500 mb-2">
-                  Capacity
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+            ) : (
+              <>
+                {selectedStation.imageUrl && (
+                  <div className="aspect-video w-full mb-6 rounded-lg overflow-hidden">
+                    <img
+                      src={selectedStation.imageUrl}
+                      alt={`${selectedStation.name} station`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="flex justify-between items-start">
                   <div>
-                    <div className="text-sm text-gray-500">Total</div>
-                    <div className="text-lg font-medium text-gray-900">
-                      {selectedStation.capacity}
+                    <h2 className="text-lg font-medium text-gray-900">
+                      {selectedStation.name}
+                    </h2>
+                    <p className="text-sm text-gray-500">{selectedStation.address}</p>
+                  </div>
+                  <button
+                    className="text-gray-400 hover:text-gray-500"
+                    onClick={() => {
+                      setEditingStation(mapApiToFormStation(selectedStation));
+                      setShowForm(true);
+                    }}
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      Status
+                    </div>
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                        selectedStation.status
+                      )}`}
+                    >
+                      {selectedStation.status ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      Capacity
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-500">Total</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {selectedStation.capacity}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Available</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {selectedStation.availableStandardBikes + selectedStation.availableElectricBikes}
+                        </div>
+                      </div>
                     </div>
                   </div>
+
                   <div>
-                    <div className="text-sm text-gray-500">Available</div>
-                    <div className="text-lg font-medium text-gray-900">
-                      {selectedStation.availableDocks}
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      Bikes
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="text-sm text-gray-500">Standard</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {selectedStation.availableStandardBikes}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500">Electric</div>
+                        <div className="text-lg font-medium text-gray-900">
+                          {selectedStation.availableElectricBikes}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedStation.bikes && selectedStation.bikes.length > 0 && (
+                    <div>
+                      <div className="text-sm font-medium text-gray-500 mb-2">
+                        Bike List
+                      </div>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {selectedStation.bikes.map((bike) => (
+                          <div
+                            key={bike.id}
+                            className="p-2 bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {bike.bikeNumber}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {bike.type}
+                                </div>
+                              </div>
+                              {bike.type === 'ELECTRIC' && (
+                                <div className="flex items-center">
+                                  <Battery className="w-4 h-4 text-gray-400 mr-1" />
+                                  <span className="text-xs text-gray-500">
+                                    {bike.batteryLevel}%
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Status: {bike.status}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      Location
+                    </div>
+                    <div className="text-sm text-gray-900">
+                      {selectedStation.latitude.toFixed(4)},{' '}
+                      {selectedStation.longitude.toFixed(4)}
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <div className="text-sm font-medium text-gray-500 mb-2">
-                  Bikes
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <div className="text-sm text-gray-500">Standard</div>
-                    <div className="text-lg font-medium text-gray-900">
-                      {selectedStation.standardBikes}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Electric</div>
-                    <div className="text-lg font-medium text-gray-900">
-                      {selectedStation.electricBikes}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-sm font-medium text-gray-500 mb-2">
-                  Last Maintenance
-                </div>
-                <div className="text-sm text-gray-900">
-                  {new Date(selectedStation.lastMaintenance).toLocaleDateString()}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-sm font-medium text-gray-500 mb-2">
-                  Location
-                </div>
-                <div className="text-sm text-gray-900">
-                  {selectedStation.location.lat.toFixed(4)},{' '}
-                  {selectedStation.location.lng.toFixed(4)}
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -419,8 +529,7 @@ export default function StationManagementPage() {
       {/* Station Form Modal */}
       {showForm && (
         <StationForm
-          station={editingStation}
-          onSave={editingStation ? handleEditStation : handleAddStation}
+          onSave={handleAddStation}
           onClose={() => {
             setShowForm(false);
             setEditingStation(undefined);
